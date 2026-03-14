@@ -27,11 +27,21 @@ Page {
     id: drivePage
     
     layoutSpacing: units.gridUnit
-    text: qsTr("Write Options")
+    text: selectedOption == Units.MainSelect.FlashExisting ? qsTr("Flash Existing ISO") : qsTr("Bazzite Image Options")
+
+    property string suggestedIsoName: {
+        if (!releases.selected || !releases.selected.version || !releases.selected.version.variant)
+            return "bazzite.iso"
+        const url = releases.selected.version.variant.url.toString()
+        if (!url)
+            return "bazzite.iso"
+        const name = url.split("/").slice(-1)[0]
+        return name && name.length ? name : "bazzite.iso"
+    }
         
     ColumnLayout {
         id: versionCol
-        visible: selectedOption != Units.MainSelect.Write
+        visible: selectedOption != Units.MainSelect.FlashExisting
 
         Heading {
             text: qsTr("Version")
@@ -53,7 +63,7 @@ Page {
 
     ColumnLayout {
         id: architectureCol
-        visible: selectedOption != Units.MainSelect.Write
+        visible: selectedOption != Units.MainSelect.FlashExisting
 
         Heading {
             text: qsTr("Hardware Architecture")
@@ -70,7 +80,7 @@ Page {
 
     ColumnLayout {
         id: selectFileColumn
-        visible: selectedOption == Units.MainSelect.Write
+        visible: selectedOption == Units.MainSelect.FlashExisting
 
         Heading {
             text: qsTr("Selected file")
@@ -115,6 +125,8 @@ Page {
     }
 
     ColumnLayout {
+        visible: selectedOption != Units.MainSelect.DownloadOnly
+
         Heading {
             text: qsTr("USB Drive")
         }
@@ -140,7 +152,7 @@ Page {
     }
 
     ColumnLayout {
-        visible: selectedOption != Units.MainSelect.Write
+        visible: selectedOption == Units.MainSelect.FlashBazzite
 
         Heading {
             text: qsTr("Download")
@@ -153,19 +165,30 @@ Page {
         }
     }
     
-    states: [
-        State {
-            name: "Downloading"
-            when: selectedOption != Units.MainSelect.Write && selectedPage == Units.Page.DrivePage
-            StateChangeScript { script: releases.setSelectedVariantIndex = 0 }
+    FileDialog {
+        id: saveDialog
+        title: qsTr("Save Bazzite ISO")
+        fileMode: FileDialog.SaveFile
+        nameFilters: [qsTr("ISO files") + " (*.iso)", qsTr("All files (*)")]
+        onAccepted: {
+            releases.variant.setDownloadPath(currentFile.toString())
+            releases.variant.download()
+            selectedPage = Units.Page.DownloadPage
         }
-    ]
+    }
 
-    nextButtonEnabled: (selectedOption != Units.MainSelect.Write && selectedPage == Units.Page.DrivePage) ||
-                       (selectedOption == Units.MainSelect.Write && selectedPage == Units.Page.DrivePage)
+    nextButtonEnabled: {
+        if (selectedOption == Units.MainSelect.FlashExisting)
+            return !!releases.localFile.iso
+
+        return !!(releases.selected && releases.selected.version && releases.selected.version.variant)
+    }
 
     nextButtonText: {
-        if (selectedOption == Units.MainSelect.Write || downloadManager.isDownloaded(releases.selected.version.variant.url))
+        if (selectedOption == Units.MainSelect.DownloadOnly)
+            return qsTr("Download ISO")
+
+        if (selectedOption == Units.MainSelect.FlashExisting || downloadManager.isDownloaded(releases.selected.version.variant.url))
             return qsTr("Write")
         if (Qt.platform.os === "windows" || Qt.platform.os === "osx")
             return qsTr("Download && Write")
@@ -173,7 +196,7 @@ Page {
     }
 
     onPreviousButtonClicked: {
-        if (selectedOption == Units.MainSelect.Write)
+        if (selectedOption == Units.MainSelect.FlashExisting)
             selectedPage = Units.Page.MainPage
         else {
             selectedPage -= 1
@@ -182,7 +205,12 @@ Page {
     }
 
     onNextButtonClicked: {
-        if (selectedOption != Units.MainSelect.Write)
+        if (selectedOption == Units.MainSelect.DownloadOnly) {
+            saveDialog.open()
+            return
+        }
+
+        if (selectedOption != Units.MainSelect.FlashExisting)
             releases.variant.download()
 
         if (!drives.length) {

@@ -438,11 +438,13 @@ signals:
 
 public slots:
     void download();
+    Q_INVOKABLE void setDownloadPath(const QString &path);
     void resetStatus();
 
 private:
     QString m_temporaryIso{};
     QString m_iso{};
+    QString m_downloadPath{};
     ReleaseArchitecture *m_arch{nullptr};
     ReleaseVariant::Type m_type{LIVE};
     QString m_url{};

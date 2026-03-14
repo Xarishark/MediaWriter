@@ -25,6 +25,7 @@
 
 #include "crashhandler.h"
 #include "drivemanager.h"
+#include "hardwaredetector.h"
 #include "portalfiledialog.h"
 #include "releasemanager.h"
 
@@ -43,7 +44,7 @@ int main(int argc, char **argv)
 
     QApplication::setOrganizationDomain("fedoraproject.org");
     QApplication::setOrganizationName("fedoraproject.org");
-    QApplication::setApplicationName("MediaWriter");
+    QApplication::setApplicationName("BazziteMediaWriter");
 
     QApplication app(argc, argv);
     options.parse(app.arguments());
@@ -64,6 +65,7 @@ int main(int argc, char **argv)
 
     engine.rootContext()->setContextProperty("downloadManager", DownloadManager::instance());
     engine.rootContext()->setContextProperty("drives", DriveManager::instance());
+    engine.rootContext()->setContextProperty("hardwareDetector", new HardwareDetector(&app));
     engine.rootContext()->setContextProperty("portalFileDialog", new PortalFileDialog(&app));
     engine.rootContext()->setContextProperty("mediawriterVersion", MEDIAWRITER_VERSION);
     engine.rootContext()->setContextProperty("releases", new ReleaseManager());

@@ -31,9 +31,9 @@ QtObject {
     ]
     
     enum MainSelect {
-        Download,
-        Write,
-        Restore
+        FlashBazzite,
+        DownloadOnly,
+        FlashExisting
     }
     
     enum Page {

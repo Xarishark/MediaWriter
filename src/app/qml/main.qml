@@ -30,7 +30,7 @@ ApplicationWindow {
 
     property int selectedPage: Units.Page.MainPage
     property int selectedVersion: Units.Source.Product
-    property int selectedOption: Units.MainSelect.Download
+    property int selectedOption: Units.MainSelect.FlashBazzite
     property QtObject lastRestoreable
     property bool eraseVariant: false
     
@@ -78,14 +78,15 @@ ApplicationWindow {
                 when: selectedPage == Units.Page.MainPage
                 PropertyChanges { 
                     target: mainWindow
-                    title: qsTr("Fedora Media Writer") 
+                    title: qsTr("Bazzite Media Writer") 
                 }
 
                 StateChangeScript {
                     script: {
                         //reset of source on versionPage
-                        selectedOption = Units.MainSelect.Download
+                        selectedOption = Units.MainSelect.FlashBazzite
                         releases.filterSource = 0
+                        releases.filterText = ""
                         if (stackView.depth > 1)  {
                             while (stackView.depth != 1) {
                                 stackView.pop()
@@ -97,7 +98,7 @@ ApplicationWindow {
             State {
                 name: "versionPage"
                 when: selectedPage == Units.Page.VersionPage
-                PropertyChanges { target: mainWindow; title: qsTr("Select Fedora Version") }
+                PropertyChanges { target: mainWindow; title: qsTr("Select Bazzite Image") }
                 StateChangeScript {
                     script: {
                         //state was pushing same page when returing from drivePage

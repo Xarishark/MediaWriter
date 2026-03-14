@@ -8,6 +8,7 @@ set(MEDIAWRITER_SRCS
     downloadmanager.cpp
     drivemanager.cpp
     fakedrivemanager.cpp
+    hardwaredetector.cpp
     main.cpp
     notifications.cpp
     portalfiledialog.cpp

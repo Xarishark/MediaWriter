@@ -27,12 +27,16 @@ Page {
 
     property int availableDrives: drives.length
     property int currentStatus: releases.variant.status
-    property string file: mainWindow.selectedOption == Units.MainSelect.Write ? (String)(releases.localFile.iso).split("/").slice(-1)[0] : releases.selected.name + " " + releases.selected.version.number
+    property bool downloadOnlyMode: mainWindow.selectedOption == Units.MainSelect.DownloadOnly
+    property int effectiveStatus: downloadOnlyMode && currentStatus === Units.DownloadStatus.Ready ? Units.DownloadStatus.Finished : currentStatus
+    property string file: mainWindow.selectedOption == Units.MainSelect.FlashExisting ? (String)(releases.localFile.iso).split("/").slice(-1)[0] : releases.selected.name + " " + releases.selected.version.number
 
     imageSource: "qrc:/downloadPageImage"
     layoutSpacing: units.gridUnit
     text: {
-        if (currentStatus === Units.DownloadStatus.Finished)
+        if (effectiveStatus === Units.DownloadStatus.Finished && downloadOnlyMode)
+            qsTr("%1 Successfully Downloaded").arg(file)
+        else if (effectiveStatus === Units.DownloadStatus.Finished)
             qsTr("%1 Successfully Written").arg(file)
         else if (currentStatus === Units.DownloadStatus.Writing)
             qsTr("Writing %1").arg(file)
@@ -103,14 +107,14 @@ Page {
             id: messageDownload
             visible: currentStatus === Units.DownloadStatus.Downloading ||
                      currentStatus === Units.DownloadStatus.Download_Verifying
-            text: qsTr("Downloads are saved to the downloads folder.")
+            text: downloadOnlyMode ? qsTr("Downloading selected Bazzite ISO.") : qsTr("Downloads are saved to the downloads folder.")
             width: infoColumn.width
             wrapMode: QQC2.Label.Wrap
         }
 
         QQC2.Label {
             id: messageLoseData
-            visible: availableDrives && (currentStatus === Units.DownloadStatus.Failed ||
+            visible: !downloadOnlyMode && availableDrives && (currentStatus === Units.DownloadStatus.Failed ||
                                          currentStatus === Units.DownloadStatus.Failed_Verification ||
                                          currentStatus === Units.DownloadStatus.Ready)
             text: qsTr("By writing, you will lose all of the data on %1.").arg(drives.selected.name)
@@ -120,7 +124,7 @@ Page {
 
         QQC2.Label {
             id: messageInsertDrive
-            visible: currentStatus === Units.DownloadStatus.Ready && !availableDrives
+            visible: !downloadOnlyMode && currentStatus === Units.DownloadStatus.Ready && !availableDrives
             text: qsTr("Please insert an USB drive.")
             width: infoColumn.width
             wrapMode: QQC2.Label.Wrap
@@ -130,14 +134,14 @@ Page {
             id: messageRestore
             visible: currentStatus === Units.DownloadStatus.Write_Verifying ||
                      currentStatus === Units.DownloadStatus.Writing
-            text: qsTr("Your drive will be resized to a smaller capacity. You may resize it back to normal by using Fedora Media Writer. This will remove installation media from your drive.")
+            text: qsTr("Your drive will be resized to a smaller capacity. You may resize it back to normal later. This will remove installation media from your drive.")
             width: infoColumn.width
             wrapMode: QQC2.Label.Wrap
         }
 
         QQC2.Label {
             id: messageSelectedImage
-            visible: releases.selected.isLocal
+            visible: mainWindow.selectedOption == Units.MainSelect.FlashExisting
             text: "<font color=\"gray\">" + qsTr("Selected:") + "</font> " + (releases.variant.iso ? (((String)(releases.variant.iso)).split("/").slice(-1)[0]) : ("<font color=\"gray\">" + qsTr("None") + "</font>"))
             width: infoColumn.width
             wrapMode: QQC2.Label.Wrap
@@ -164,8 +168,8 @@ Page {
 
         QQC2.Label {
             id: messageFinished
-            visible: currentStatus === Units.DownloadStatus.Finished
-            text: qsTr("Restart and boot from %1 to start using %2.").arg(drives.selected ? drives.selected.name : "N/A").arg(mainWindow.selectedOption == Units.MainSelect.Write ? (String)(releases.localFile.iso).split("/").slice(-1)[0] : releases.selected.name)
+            visible: effectiveStatus === Units.DownloadStatus.Finished
+            text: downloadOnlyMode ? qsTr("Saved ISO: %1").arg(releases.variant.iso) : qsTr("Restart and boot from %1 to start using %2.").arg(drives.selected ? drives.selected.name : "N/A").arg(mainWindow.selectedOption == Units.MainSelect.FlashExisting ? (String)(releases.localFile.iso).split("/").slice(-1)[0] : releases.selected.name)
             width: infoColumn.width
             wrapMode: QQC2.Label.Wrap
         }
@@ -213,7 +217,7 @@ Page {
         },
         State {
             name: "finished"
-            when: currentStatus === Units.DownloadStatus.Finished
+            when: effectiveStatus === Units.DownloadStatus.Finished
             PropertyChanges {
                 target: progressBar;
                 value: 100;
@@ -233,7 +237,7 @@ Page {
 
     // There will be only [Finish] button on the right side so [Cancel] button
     // is not necessary
-    previousButtonVisible: currentStatus != Units.DownloadStatus.Finished
+    previousButtonVisible: effectiveStatus != Units.DownloadStatus.Finished
     previousButtonText: qsTr("Cancel")
     onPreviousButtonClicked: {
         if (releases.variant.status === Units.DownloadStatus.Write_Verifying ||
@@ -249,8 +253,12 @@ Page {
     }
 
     nextButtonVisible: {
-        if (currentStatus == Units.DownloadStatus.Finished)
+        if (effectiveStatus == Units.DownloadStatus.Finished)
             return true
+
+        if (downloadOnlyMode)
+            return currentStatus == Units.DownloadStatus.Failed_Download
+
         // This will be [Retry] button to start the process again if there is a drive plugged in
         else if (currentStatus == Units.DownloadStatus.Ready ||
                  currentStatus == Units.DownloadStatus.Failed_Verification ||
@@ -260,6 +268,12 @@ Page {
         return false
     }
     nextButtonText: {
+
+        if (downloadOnlyMode) {
+            if (effectiveStatus === Units.DownloadStatus.Finished)
+                return qsTr("Finish")
+            return qsTr("Retry")
+        }
 
         if (releases.variant.status === Units.DownloadStatus.Write_Verifying ||
             releases.variant.status === Units.DownloadStatus.Writing ||
@@ -274,7 +288,13 @@ Page {
             return qsTr("Retry")
     }
     onNextButtonClicked: {
-        if (releases.variant.status === Units.DownloadStatus.Finished) {
+        if (downloadOnlyMode && effectiveStatus === Units.DownloadStatus.Finished) {
+            releases.variant.resetStatus()
+            downloadManager.cancel()
+            selectedPage = Units.Page.MainPage
+        } else if (downloadOnlyMode && releases.variant.status === Units.DownloadStatus.Failed_Download) {
+            releases.variant.download()
+        } else if (releases.variant.status === Units.DownloadStatus.Finished) {
             drives.lastRestoreable = drives.selected
             drives.lastRestoreable.setRestoreStatus(Units.RestoreStatus.Contains_Live)
             releases.variant.resetStatus()
@@ -284,7 +304,7 @@ Page {
                    (releases.variant.status === Units.DownloadStatus.Failed_Verification && drives.length) ||
                     releases.variant.status === Units.DownloadStatus.Failed_Download ||
                     releases.variant.status === Units.DownloadStatus.Ready) {
-            if (selectedOption != Units.MainSelect.Write)
+            if (selectedOption != Units.MainSelect.FlashExisting)
                 releases.variant.download()
             drives.selected.setImage(releases.variant)
             drives.selected.write(releases.variant)

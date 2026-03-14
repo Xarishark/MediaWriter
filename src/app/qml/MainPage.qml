@@ -26,40 +26,29 @@ Page {
     id: mainPage
 
     imageSource: "qrc:/mainPageImage"
-    text: qsTr("Select Image Source")
+    text: qsTr("Choose Bazzite Action")
 
     QQC2.RadioButton {
-        checked: selectedOption == Units.MainSelect.Download
-        text: qsTr("Download automatically")
+        checked: selectedOption == Units.MainSelect.FlashBazzite
+        text: qsTr("Flash Bazzite to USB")
         onClicked: {
-            selectedOption = Units.MainSelect.Download
+            selectedOption = Units.MainSelect.FlashBazzite
         }
     }
 
     QQC2.RadioButton {
-        text: qsTr("Select .iso file")
+        text: qsTr("Download Bazzite ISO Only")
         onClicked: {
-            selectedOption = Units.MainSelect.Write
+            selectedOption = Units.MainSelect.DownloadOnly
+        }
+    }
+
+    QQC2.RadioButton {
+        checked: selectedOption == Units.MainSelect.FlashExisting
+        text: qsTr("Flash Existing Bazzite ISO to USB")
+        onClicked: {
+            selectedOption = Units.MainSelect.FlashExisting
             releases.selectLocalFile("")
-        }
-    }
-
-    QQC2.RadioButton {
-        id: restoreRadio
-        visible: drives.lastRestoreable
-        text: drives.lastRestoreable ? qsTr("Restore <b>%1</b>").arg(drives.lastRestoreable.name) : ""
-        onClicked: {
-            selectedOption = Units.MainSelect.Restore
-        }
-
-        Connections {
-            target: drives
-            function onLastRestoreableChanged() {
-                if (drives.lastRestoreable != null && !restoreRadio.visible)
-                    restoreRadio.visible = true
-                if (!drives.lastRestoreable)
-                    restoreRadio.visible = false
-            }
         }
     }
 
@@ -76,13 +65,12 @@ Page {
     }
 
     onNextButtonClicked: {
-        if (selectedOption == Units.MainSelect.Write) {
+        if (selectedOption == Units.MainSelect.FlashExisting) {
             if (releases.localFile.iso)
                 releases.selectLocalFile()
             selectedPage = Units.Page.DrivePage
-        } else if (selectedOption == Units.MainSelect.Restore)
-            selectedPage = Units.Page.RestorePage
-        else
+        } else {
             selectedPage = Units.Page.VersionPage
+        }
     }
 }

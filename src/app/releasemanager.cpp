@@ -24,6 +24,7 @@
 
 #include <QAbstractEventDispatcher>
 #include <QApplication>
+#include <QFileInfo>
 #include <QtQml>
 
 #include <QJsonDocument>
@@ -988,6 +989,20 @@ void ReleaseVariant::onFileDownloaded(const QString &path, const QString &hash)
             }
         }
 
+        if (!m_downloadPath.isEmpty() && finalFilename != m_downloadPath) {
+            if (QFile::exists(m_downloadPath) && !QFile::remove(m_downloadPath)) {
+                setErrorString(tr("Unable to overwrite selected destination file."));
+                setStatus(FAILED_DOWNLOAD);
+                return;
+            }
+            if (!QFile::rename(finalFilename, m_downloadPath)) {
+                setErrorString(tr("Unable to move downloaded image to selected destination."));
+                setStatus(FAILED_DOWNLOAD);
+                return;
+            }
+            finalFilename = m_downloadPath;
+        }
+
         m_iso = finalFilename;
         emit isoChanged();
 
@@ -1029,7 +1044,13 @@ void ReleaseVariant::download()
         setStatus(DOWNLOADING);
         if (m_size)
             progress()->setTo(m_size);
-        QString ret = DownloadManager::instance()->downloadFile(this, url(), DownloadManager::dir(), progress());
+        QString downloadDir = DownloadManager::dir();
+        if (!m_downloadPath.isEmpty()) {
+            const QFileInfo info(m_downloadPath);
+            if (!info.absolutePath().isEmpty())
+                downloadDir = info.absolutePath();
+        }
+        QString ret = DownloadManager::instance()->downloadFile(this, url(), downloadDir, progress());
         if (!ret.endsWith(".part")) {
             m_temporaryIso = QString();
             m_iso = ret;
@@ -1046,6 +1067,20 @@ void ReleaseVariant::download()
             m_temporaryIso = ret;
         }
     }
+}
+
+void ReleaseVariant::setDownloadPath(const QString &path)
+{
+    if (path.isEmpty()) {
+        m_downloadPath = QString();
+        return;
+    }
+
+    const QUrl fileUrl(path);
+    if (fileUrl.isLocalFile())
+        m_downloadPath = fileUrl.toLocalFile();
+    else
+        m_downloadPath = path;
 }
 
 void ReleaseVariant::resetStatus()

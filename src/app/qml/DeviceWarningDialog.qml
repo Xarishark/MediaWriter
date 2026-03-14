@@ -78,7 +78,7 @@ ApplicationWindow {
                     drives.selected.write(releases.variant)
                 }
                 text: {
-                    if (selectedOption == Units.MainSelect.Write || downloadManager.isDownloaded(releases.selected.version.variant.url))
+                    if (selectedOption == Units.MainSelect.FlashExisting || downloadManager.isDownloaded(releases.selected.version.variant.url))
                         return qsTr("Write")
                     if (Qt.platform.os === "windows" || Qt.platform.os === "osx")
                         return qsTr("Download && Write")
